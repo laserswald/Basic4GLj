@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'antlr'
 }
 
 java {
@@ -17,6 +18,7 @@ repositories {
 
 dependencies {
     testImplementation 'junit:junit:4.12'
+    antlr "org.antlr:antlr4:4.5"
 }
 
 // prepare input directory for jpackage distribution builds
