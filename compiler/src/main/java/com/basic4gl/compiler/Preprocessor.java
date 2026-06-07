@@ -23,151 +23,153 @@ import java.util.*;
  */
 public class Preprocessor extends HasErrorState {
 
-    // Registered source file servers
-    private List<ISourceFileServer> fileServers = new ArrayList<>();
+	// Registered source file servers
+	private List<ISourceFileServer> fileServers = new ArrayList<>();
 
-    // Stack of currently opened files.
-    // openFiles.back() is the current file being parsed
-    private final Vector<ISourceFile> openFiles = new Vector<>();
+	// Stack of currently opened files.
+	// openFiles.back() is the current file being parsed
+	private final Vector<ISourceFile> openFiles = new Vector<>();
 
-    // Filenames of visited source files. (To prevent circular includes)
-    private final List<String> visitedFiles = new ArrayList<>();
+	// Filenames of visited source files. (To prevent circular includes)
+	private final List<String> visitedFiles = new ArrayList<>();
 
-    // Source file <=> Processed file mapping
-    private final LineNumberMapping lineNumberMap = new LineNumberMapping();
+	// Source file <=> Processed file mapping
+	private final LineNumberMapping lineNumberMap = new LineNumberMapping();
 
-    void closeAll() {
+	public Preprocessor() {
+	}
 
-        // Close all open files
-        for (int i = 0; i < openFiles.size(); i++) {
-            openFiles.get(i).release();
-        }
-        openFiles.clear();
-    }
+	/**
+	 * Construct the preprocessor. Pass in 0 or more file servers to initialise.
+	 */
+	public Preprocessor(int serverCount, ISourceFileServer... server) {
+		// Register source file servers
+		for (int i = 0; i < serverCount; i++) {
+			fileServers.add(server[i]);
+		}
+	}
 
-    ISourceFile openFile(String filename) {
-        System.out.println("Preprocessing include file: \n" + filename);
-        // Query file servers in order until one returns an open file.
-        for (ISourceFileServer server : fileServers) {
-            ISourceFile file = server.openSourceFile(filename);
-            if (file != null) {
-                return file;
-            }
-        }
+	void closeAll() {
 
-        // Unable to open file
-        return null;
-    }
+		// Close all open files
+		for (int i = 0; i < openFiles.size(); i++) {
+			openFiles.get(i).release();
+		}
+		openFiles.clear();
+	}
 
-    /**
-     * Construct the preprocessor. Pass in 0 or more file servers to initialise.
-     */
-    public Preprocessor(int serverCount, ISourceFileServer... server) {
-        // Register source file servers
-        for (int i = 0; i < serverCount; i++) {
-            fileServers.add(server[i]);
-        }
-    }
+	ISourceFile openFile(String filename) {
+		System.out.println("Preprocessing include file: \n" + filename);
+		// Query file servers in order until one returns an open file.
+		for (ISourceFileServer server : fileServers) {
+			ISourceFile file = server.openSourceFile(filename);
+			if (file != null) {
+				return file;
+			}
+		}
 
-    protected void finalize() // virtual ~Preprocessor();
-            {
+		// Unable to open file
+		return null;
+	}
 
-        // Ensure no source files are still open
-        closeAll();
+	protected void finalize() // virtual ~Preprocessor();
+	{
 
-        // Delete source file servers
-        fileServers.clear();
-        fileServers = null;
-    }
+		// Ensure no source files are still open
+		closeAll();
 
-    /**
-     * Process source file into one large file.
-     * Parser is initialised with the expanded file.
-     */
-    public boolean preprocess(ISourceFile mainFile, Parser parser) {
-        assertTrue(mainFile != null);
+		// Delete source file servers
+		fileServers.clear();
+		fileServers = null;
+	}
 
-        // Reset
-        closeAll();
-        visitedFiles.clear();
-        lineNumberMap.clear();
-        clearError();
+	/**
+	 * Process source file into one large file.
+	 * Parser is initialised with the expanded file.
+	 */
+	public boolean preprocess(ISourceFile mainFile, Parser parser) {
+		assertTrue(mainFile != null);
 
-        // Clear the parser
-        parser.getSourceCode().clear();
+		// Reset
+		closeAll();
+		visitedFiles.clear();
+		lineNumberMap.clear();
+		clearError();
 
-        // Load the main file
-        openFiles.add(mainFile);
+		// Clear the parser
+		parser.getSourceCode().clear();
 
-        // Process files
-        while (!openFiles.isEmpty() && !hasError()) {
-            // Check for Eof
-            if (openFiles.lastElement().isEof()) {
+		// Load the main file
+		openFiles.add(mainFile);
 
-                // Close innermost file
-                openFiles.lastElement().release();
-                openFiles.remove(openFiles.size() - 1);
-            } else {
+		// Process files
+		while (!openFiles.isEmpty() && !hasError()) {
+			// Check for Eof
+			if (openFiles.lastElement().isEof()) {
 
-                // Read a line from the source file
-                int lineNo = openFiles.lastElement().getLineNumber();
-                String line = openFiles.lastElement().getNextLine();
+				// Close innermost file
+				openFiles.lastElement().release();
+				openFiles.remove(openFiles.size() - 1);
+			} else {
 
-                // Check for #include
-                boolean include = (line.length() >= 8
-                        && line.substring(0, 8).toLowerCase().equals("include "));
-                if (include) {
+				// Read a line from the source file
+				int lineNo = openFiles.lastElement().getLineNumber();
+				String line = openFiles.lastElement().getNextLine();
 
-                    // Get filename
-                    String includeName =
-                            separatorsToSystem(line.substring(8, line.length()).trim());
-                    String parent = new File(mainFile.getFilename()).getParent(); // Parent directory
-                    String filename = new File(parent, includeName).getAbsolutePath();
+				// Check for #include
+				boolean include = (line.length() >= 8
+						&& line.substring(0, 8).toLowerCase().equals("include "));
+				if (include) {
 
-                    // Check this file hasn't been included already
-                    if (!visitedFiles.contains(filename)) {
+					// Get filename
+					String includeName = separatorsToSystem(line.substring(8, line.length()).trim());
+					String parent = new File(mainFile.getFilename()).getParent(); // Parent directory
+					String filename = new File(parent, includeName).getAbsolutePath();
 
-                        // Open next file
-                        ISourceFile file = openFile(filename);
-                        if (file == null) {
-                            setError("Unable to open file: " + includeName);
-                        } else {
-                            // This becomes the new innermost file
-                            openFiles.add(file);
+					// Check this file hasn't been included already
+					if (!visitedFiles.contains(filename)) {
 
-                            // Add to visited files list
-                            visitedFiles.add(0, filename);
-                        }
-                    } else {
-                        setError("File already included: " + includeName);
-                    }
-                } else {
-                    // Not an #include line
-                    // Add to parser, and line number map
-                    lineNumberMap.addLine(openFiles.lastElement().getFilename(), lineNo);
-                    parser.getSourceCode().add(line);
-                }
-            }
-        }
+						// Open next file
+						ISourceFile file = openFile(filename);
+						if (file == null) {
+							setError("Unable to open file: " + includeName);
+						} else {
+							// This becomes the new innermost file
+							openFiles.add(file);
 
-        // Return true if no error encountered
-        return !hasError();
-    }
+							// Add to visited files list
+							visitedFiles.add(0, filename);
+						}
+					} else {
+						setError("File already included: " + includeName);
+					}
+				} else {
+					// Not an #include line
+					// Add to parser, and line number map
+					lineNumberMap.addLine(openFiles.lastElement().getFilename(), lineNo);
+					parser.getSourceCode().add(line);
+				}
+			}
+		}
 
-    public LineNumberMapping getLineNumberMap() {
-        return lineNumberMap;
-    }
+		// Return true if no error encountered
+		return !hasError();
+	}
 
-    String separatorsToSystem(String res) {
-        if (res == null) {
-            return null;
-        }
-        if (File.separatorChar == '\\') {
-            // From Linux/Mac to Windows
-            return res.replace('/', File.separatorChar);
-        } else {
-            // From Windows to Linux/Mac
-            return res.replace('\\', File.separatorChar);
-        }
-    }
+	public LineNumberMapping getLineNumberMap() {
+		return lineNumberMap;
+	}
+
+	String separatorsToSystem(String res) {
+		if (res == null) {
+			return null;
+		}
+		if (File.separatorChar == '\\') {
+			// From Linux/Mac to Windows
+			return res.replace('/', File.separatorChar);
+		} else {
+			// From Windows to Linux/Mac
+			return res.replace('\\', File.separatorChar);
+		}
+	}
 }
