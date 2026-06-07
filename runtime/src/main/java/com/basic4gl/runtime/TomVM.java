@@ -415,6 +415,7 @@ public class TomVM extends HasErrorState implements Streamable {
 						switch (instruction.basicVarType) {
 							case BasicValType.VTP_INT:
 							case BasicValType.VTP_REAL:
+							case BasicValType.VTP_FUNC_PTR:
 								setReg(val);
 								ip++; // Proceed to next instruction
 								continue step;
@@ -507,6 +508,7 @@ public class TomVM extends HasErrorState implements Streamable {
 						switch (instruction.basicVarType) {
 							case BasicValType.VTP_INT:
 							case BasicValType.VTP_REAL:
+							case BasicValType.VTP_FUNC_PTR:
 								// mData.Data().set(mReg2.getIntVal(), new Value(mReg));
 								dest.setVal(getReg());
 
@@ -1253,6 +1255,7 @@ public class TomVM extends HasErrorState implements Streamable {
 					switch (instruction.basicVarType) {
 						case BasicValType.VTP_INT:
 						case BasicValType.VTP_REAL:
+						case BasicValType.VTP_FUNC_PTR:
 							// TODO Confirm value is properly set
 							// TODO Check other "dest" variables
 							dest.setVal(getReg());
@@ -1986,6 +1989,7 @@ public class TomVM extends HasErrorState implements Streamable {
 	// Displaying data
 	public String basicValToString(Value val, int type, boolean constant) {
 		switch (type) {
+			case BasicValType.VTP_FUNC_PTR:
 			case BasicValType.VTP_INT:
 				return String.valueOf(val.getIntVal());
 			case BasicValType.VTP_REAL:
