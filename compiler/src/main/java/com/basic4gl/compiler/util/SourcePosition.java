@@ -8,17 +8,16 @@ import java.io.Serializable;
  * TODO: This and InstructionPosition are the same.
  */
 public class SourcePosition implements Serializable {
-	private int fileIndex;
-	private int fileLineNumber;
+    private int fileIndex;
+    private int fileLineNumber;
 
-	public SourcePosition(int fileIndex, int fileLineNo) {
-		this.fileIndex = fileIndex;
-		fileLineNumber = fileLineNo;
-	}
+    public SourcePosition(int fileIndex, int fileLineNo) {
+        this.fileIndex = fileIndex;
+        fileLineNumber = fileLineNo;
+    }
 
-	public SourcePosition(SourcePosition c) {
-		fileIndex = c.fileIndex;
-		fileLineNumber = c.fileLineNumber;
-	}
-
+    public SourcePosition(SourcePosition c) {
+        fileIndex = c.fileIndex;
+        fileLineNumber = c.fileLineNumber;
+    }
 }
